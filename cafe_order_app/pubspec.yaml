@@ -1,0 +1,58 @@
+name: cafe_order_app
+description: "Cà Phê Mây - ứng dụng gọi món và quản lý phục vụ."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cryptography: ^2.9.0
+  flutter_secure_storage: ^11.2.0
+  http: ^1.6.0
+  image_picker: ^1.2.3
+  path: ^1.9.1
+  sqflite: ^2.4.4
+  sqflite_common_ffi: ^2.4.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+dependency_overrides:
+  # Windows can build with the standard Flutter C++ workload without ATL.
+  flutter_secure_storage_windows:
+    path: packages/flutter_secure_storage_windows
+  # Keep the Android platform-channel implementation for this build toolchain.
+  path_provider_android: 2.2.23
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/products/
+    - assets/categories/
+    - assets/branding/
+    - assets/fonts/BeVietnamPro-OFL.txt
+    - assets/fonts/PlayfairDisplay-OFL.txt
+  fonts:
+    - family: Be Vietnam Pro
+      fonts:
+        - asset: assets/fonts/BeVietnamPro-400.ttf
+          weight: 400
+        - asset: assets/fonts/BeVietnamPro-500.ttf
+          weight: 500
+        - asset: assets/fonts/BeVietnamPro-600.ttf
+          weight: 600
+        - asset: assets/fonts/BeVietnamPro-700.ttf
+          weight: 700
+    - family: Playfair Display
+      fonts:
+        - asset: assets/fonts/PlayfairDisplay-600.ttf
+          weight: 600
+        - asset: assets/fonts/PlayfairDisplay-700.ttf
+          weight: 700
