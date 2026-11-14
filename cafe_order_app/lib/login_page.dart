@@ -51,8 +51,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _openRegister() async {
-    final email = await Navigator.pushNamed<String>(context, '/register');
-    if (!mounted || email == null) return;
+    final email = await Navigator.pushNamed(context, '/register');
+    if (!mounted || email is! String) return;
     setState(() {
       _email.text = email;
       _password.clear();

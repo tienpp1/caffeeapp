@@ -8,7 +8,9 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:cafe_order_app/cart_page.dart';
 import 'package:cafe_order_app/helper.dart';
 import 'package:cafe_order_app/local_database.dart';
+import 'package:cafe_order_app/login_page.dart';
 import 'package:cafe_order_app/main.dart';
+import 'package:cafe_order_app/register_page.dart';
 import 'package:cafe_order_app/session_helper.dart';
 
 void main() {
@@ -32,8 +34,12 @@ void main() {
     await directory.delete(recursive: true);
   });
 
-  Future<void> waitFor(WidgetTester tester, Finder finder) async {
-    for (var attempt = 0; attempt < 100; attempt++) {
+  Future<void> waitFor(
+    WidgetTester tester,
+    Finder finder, {
+    int attempts = 100,
+  }) async {
+    for (var attempt = 0; attempt < attempts; attempt++) {
       await tester.pump(const Duration(milliseconds: 50));
       if (finder.evaluate().isNotEmpty) return;
       await tester.runAsync(
@@ -42,6 +48,63 @@ void main() {
     }
     expect(finder, findsWidgets);
   }
+
+  testWidgets('Create account from login and return with the email filled in', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.runAsync(SessionHelper.delete);
+
+    await tester.pumpWidget(const MyApp());
+    final signIn = find.widgetWithText(FilledButton, 'Đăng nhập');
+    await waitFor(tester, signIn);
+    await tester.tap(signIn);
+    await tester.pumpAndSettle();
+
+    final openRegister = find.widgetWithText(TextButton, 'Tạo tài khoản');
+    await tester.ensureVisible(openRegister);
+    await tester.tap(openRegister);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(RegisterPage), findsOneWidget);
+
+    Finder field(String label) => find.byWidgetPredicate(
+      (widget) => widget is TextField && widget.decoration?.labelText == label,
+    );
+
+    const email = 'lien.dangky@example.com';
+    const password = 'CafeMay@1234';
+    await tester.enterText(field('Tên'), 'Liên');
+    await tester.enterText(field('Email'), email);
+    await tester.enterText(field('Mật khẩu'), password);
+    await tester.enterText(field('Nhập lại mật khẩu'), password);
+    final submit = find.widgetWithText(FilledButton, 'Tạo tài khoản');
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    await tester.pump();
+    expect(find.text('Đang tạo tài khoản…'), findsOneWidget);
+
+    await waitFor(
+      tester,
+      find.text('Đã tạo tài khoản. Bạn có thể đăng nhập.'),
+      attempts: 500,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(RegisterPage), findsNothing);
+    expect(find.byType(LoginPage), findsOneWidget);
+    expect(tester.widget<TextField>(field('Email')).controller?.text, email);
+    expect(
+      tester.widget<TextField>(field('Mật khẩu')).controller?.text,
+      isEmpty,
+    );
+
+    final member = await tester.runAsync(
+      () => database.signIn(email, password),
+    );
+    expect(member?.givenName, 'Liên');
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Member adds a menu item and edits its quantity from the cart', (
     tester,
