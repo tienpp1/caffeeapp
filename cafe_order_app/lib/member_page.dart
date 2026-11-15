@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'account_widgets.dart';
+import 'helper.dart';
 import 'local_database.dart';
 import 'member.dart';
 import 'session_helper.dart';
@@ -63,7 +64,9 @@ class _MemberListState extends State<_MemberList> {
 
   void _load() {
     _searchTimer?.cancel();
-    setState(() => _members = _query());
+    setState(() {
+      _members = _query();
+    });
   }
 
   void _onSearchChanged(String _) {
@@ -80,8 +83,7 @@ class _MemberListState extends State<_MemberList> {
     );
     if (!mounted || saved != true) return;
     _load();
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Đã cập nhật thành viên.')));
+    showMessage(context, 'Đã cập nhật thành viên.');
   }
 
   @override

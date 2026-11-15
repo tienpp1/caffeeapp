@@ -106,9 +106,14 @@ class LocalDatabase {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 1,
+        version: 2,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: _create,
+        onUpgrade: (db, oldVersion, _) async {
+          if (oldVersion < 2) {
+            await db.execute('ALTER TABLE orders ADD COLUMN paidAtUtc TEXT');
+          }
+        },
       ),
     );
   }
@@ -730,6 +735,31 @@ class LocalDatabase {
     });
   }
 
+  Future<List<OrderTicket>> paidOrders(
+    String adminId, {
+    int? year,
+    int? month,
+    int? day,
+  }) async {
+    final period = _revenuePeriod(year, month, day);
+    // Both columns use UTC ISO-8601. Dropping Z before sorting preserves
+    // chronological order when one value has additional fractional digits.
+    const paidTime = "rtrim(coalesce(paidAtUtc, dated), 'Z')";
+    final db = await _database;
+    return db.transaction((txn) async {
+      await _requireActor(txn, adminId, role: 1);
+      final rows = await txn.query(
+        'orders',
+        where: period == null
+            ? 'statusId = 6'
+            : 'statusId = 6 AND $paidTime >= ? AND $paidTime < ?',
+        whereArgs: period == null ? null : [period.start, period.end],
+        orderBy: '$paidTime DESC, id DESC',
+      );
+      return rows.map(OrderTicket.fromMap).toList();
+    });
+  }
+
   Future<List<OrderLine>> orderLines(
     String actorId,
     int id, {
@@ -771,7 +801,11 @@ class LocalDatabase {
       }
       await txn.update(
         'orders',
-        {'statusId': statusId},
+        {
+          'statusId': statusId,
+          if (statusId == 6)
+            'paidAtUtc': DateTime.now().toUtc().toIso8601String(),
+        },
         where: 'id = ?',
         whereArgs: [id],
       );
@@ -964,4 +998,36 @@ class LocalDatabase {
       '${value.year.toString().padLeft(4, '0')}-'
       '${value.month.toString().padLeft(2, '0')}-'
       '${value.day.toString().padLeft(2, '0')}';
+
+  static ({String start, String end})? _revenuePeriod(
+    int? year,
+    int? month,
+    int? day,
+  ) {
+    const invalidPeriod = AppException('Kỳ doanh thu không hợp lệ.');
+    if (year == null) {
+      if (month != null || day != null) throw invalidPeriod;
+      return null;
+    }
+    if (year < 2 ||
+        year > 9998 ||
+        (month != null && (month < 1 || month > 12)) ||
+        (day != null && (month == null || day < 1 || day > 31))) {
+      throw invalidPeriod;
+    }
+
+    final first = DateTime.utc(year, month ?? 1, day ?? 1);
+    if (day != null && (first.month != month || first.day != day)) {
+      throw invalidPeriod;
+    }
+    final next = switch ((month, day)) {
+      (final int month, final int day) => DateTime.utc(year, month, day + 1),
+      (final int month, null) => DateTime.utc(year, month + 1),
+      _ => DateTime.utc(year + 1),
+    };
+    const cafeOffset = Duration(hours: 7);
+    String utcBoundary(DateTime boundary) =>
+        boundary.subtract(cafeOffset).toIso8601String().substring(0, 19);
+    return (start: utcBoundary(first), end: utcBoundary(next));
+  }
 }

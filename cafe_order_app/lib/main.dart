@@ -16,6 +16,7 @@ import 'login_page.dart';
 import 'member_page.dart';
 import 'profile_page.dart';
 import 'register_page.dart';
+import 'revenue_page.dart';
 import 'session_helper.dart';
 
 void main() {
@@ -54,6 +55,11 @@ class _MyAppState extends State<MyApp> {
       home: FutureBuilder<void>(
         future: _startup,
         builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
           if (snapshot.hasError) {
             return Scaffold(
               body: Center(
@@ -70,19 +76,17 @@ class _MyAppState extends State<MyApp> {
                       ),
                       const SizedBox(height: 12),
                       FilledButton(
-                        onPressed: () =>
-                            setState(() => _startup = _initialize()),
+                        onPressed: () {
+                          setState(() {
+                            _startup = _initialize();
+                          });
+                        },
                         child: const Text('Thử lại'),
                       ),
                     ],
                   ),
                 ),
               ),
-            );
-          }
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
             );
           }
           return const HomePage(title: 'Cà Phê Mây');
@@ -103,6 +107,7 @@ class _MyAppState extends State<MyApp> {
         '/admin/products': (_) => const ProductAdminPage(title: 'Quản lý món'),
         '/admin/orders': (_) =>
             const OrderPage(title: 'Quản lý đơn', admin: true),
+        '/admin/revenue': (_) => const RevenuePage(),
       },
     );
   }

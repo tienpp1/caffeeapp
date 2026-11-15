@@ -70,6 +70,7 @@ const _schema = [
     customerName TEXT NOT NULL,
     note TEXT NOT NULL DEFAULT '',
     dated TEXT NOT NULL,
+    paidAtUtc TEXT,
     total INTEGER NOT NULL CHECK (total > 0),
     searchText TEXT NOT NULL
   )

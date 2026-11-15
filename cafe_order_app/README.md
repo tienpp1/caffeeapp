@@ -45,6 +45,7 @@ Mỗi kho dữ liệu có thực đơn và hai tài khoản mẫu riêng. Nút �
 
 1. **Gọi món tại bàn.** Thành viên lọc và tìm món, xem chi tiết, thêm món vào giỏ, điều chỉnh số lượng và chọn bàn từ 1 đến 12. Khi gửi đơn, ứng dụng kiểm tra số phần còn lại, lưu chi tiết và tổng tiền tại thời điểm đặt. Thành viên xem lại đơn và theo dõi tiến độ.
 2. **Phục vụ và tính tiền.** Quản trị viên tra cứu đơn, xác nhận, chuyển sang pha chế, báo sẵn sàng và ghi nhận đã phục vụ. Quầy thu tiền mặt và ghi nhận thanh toán cho đơn đã phục vụ. Quản trị viên có thể hủy đơn ở hai trạng thái đầu. Khi hủy, số lượng của đơn được hoàn lại vào tồn.
+3. **Đối chiếu doanh thu.** Mở **Quản trị → Quản lý doanh thu** để xem tổng tiền, số đơn đã thanh toán và tiền trung bình mỗi đơn. Chọn **Tất cả**, **Ngày**, **Tháng** hoặc **Năm**, rồi bấm vào từng đơn để đối chiếu. Kỳ báo cáo tính theo giờ Việt Nam và theo thời điểm thu tiền. Với đơn cũ thiếu thời điểm thanh toán, báo cáo dùng ngày đặt và ghi rõ trên màn hình.
 
 ## Đối chiếu yêu cầu học phần
 
@@ -79,7 +80,7 @@ Sản phẩm trong tiêu chí là món trong thực đơn. Giỏ hàng là giỏ
 
 ## Kiểm thử
 
-Bộ kiểm thử có bảy ca SQLite và hai ca Flutter widget, bao gồm vòng đời ảnh, phân quyền, giao dịch tồn kho, lưu dữ liệu qua lần mở lại và luồng đặt món đến thu tiền. Trên SQL Server Express, 43 kiểm tra API đã đạt, gồm đăng nhập, phân quyền, tải ảnh multipart, thu tiền và hoàn tồn khi hủy. Bản Windows mở được dữ liệu mẫu với `flutter run -d windows`. Chrome đã đăng nhập, thêm và xóa món trong giỏ qua API.
+Bộ kiểm thử Flutter bao gồm phân quyền, quản lý danh mục và món, đặt món đến thu tiền, chuyển tài khoản và đối chiếu doanh thu theo kỳ. Các ca SQLite kiểm tra tồn kho, lưu dữ liệu qua lần mở lại và nâng cấp dữ liệu ngày thanh toán từ phiên bản cũ.
 
 ```powershell
 flutter test

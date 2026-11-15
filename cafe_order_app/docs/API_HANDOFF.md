@@ -33,8 +33,13 @@ Cấu trúc dự án gồm `Api/Controller` cho các endpoint, `Models` cho th�
 | Món và ảnh | `GET /api/products`, `GET /api/products/{id}`, `POST /api/products`, `PUT /api/products/{id}`, `DELETE /api/products/{id}`, `GET /api/images/{id}` |
 | Giỏ | `GET /api/cart`, `GET /api/cart/count`, `POST /api/cart/{productId}`, `PUT /api/cart/{productId}` |
 | Đơn | `GET /api/orders`, `POST /api/orders`, `GET /api/orders/{id}`, `GET /api/orders/{id}/lines`, `PUT /api/orders/{id}/status` |
+| Doanh thu | `GET /api/orders/revenue` với quyền Admin |
 
 API kiểm tra Bearer token và quyền ở mỗi thao tác có xác thực. Member xem đơn của tài khoản đang đăng nhập. Admin quản lý danh mục, món, thành viên và trạng thái đơn. Giỏ và tồn kho được cập nhật cùng giao dịch tạo đơn. Hủy đơn ở trạng thái cho phép sẽ hoàn tồn. Ảnh thêm hoặc thay qua API được lưu trong SQL Server.
+
+Doanh thu trả về danh sách đơn có `statusId=6`. Bỏ trống tham số để xem tất cả hoặc thêm `year`, `year` cùng `month`, hay cả `year`, `month`, `day`. API lọc theo `paidAtUtc` trong kỳ theo giờ Việt Nam. Đơn cũ có `paidAtUtc` bằng `null` dùng ngày đặt `dated` để xác định kỳ.
+
+Khi khởi động lại bằng `dotnet watch run` ở môi trường Development, API tự bổ sung cột `PaidAtUtc` nếu cần. Với cơ sở dữ liệu có sẵn ở môi trường khác, chạy [CafeMay.sql](../../CafeWebApi/CafeMay.sql) để cập nhật lược đồ trước khi chạy API mới.
 
 ## Dịch vụ ngoài còn lại
 

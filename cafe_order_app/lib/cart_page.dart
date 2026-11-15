@@ -39,7 +39,9 @@ class _CartPageState extends State<CartPage> {
 
   void _loadMemberCart() {
     final member = SessionHelper.current.value;
-    _memberId = member == null || member.isAdmin ? null : member.id;
+    _memberId = member == null || !member.active || member.isAdmin
+        ? null
+        : member.id;
     _cart = _memberId == null ? null : _database.cart(_memberId!);
   }
 
@@ -49,9 +51,11 @@ class _CartPageState extends State<CartPage> {
     setState(() => _busy = true);
     try {
       await _database.setCartQuantity(memberId, item.productId, quantity);
-      if (mounted) setState(_loadMemberCart);
+      if (mounted && _memberId == memberId) setState(_loadMemberCart);
     } catch (error) {
-      if (mounted) showMessage(context, errorMessage(error));
+      if (mounted && _memberId == memberId) {
+        showMessage(context, errorMessage(error));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -64,7 +68,7 @@ class _CartPageState extends State<CartPage> {
         builder: (_) => _CheckoutPage(items: items, member: member),
       ),
     );
-    if (!mounted || id == null) return;
+    if (!mounted || id == null || _memberId != member.id) return;
     setState(_loadMemberCart);
     showMessage(context, 'Đã gửi đơn #$id.');
     await Navigator.pushNamed(
@@ -82,10 +86,11 @@ class _CartPageState extends State<CartPage> {
             child: Text('Đăng nhập bằng tài khoản Member để xem giỏ món.'),
           )
         : FutureBuilder<List<CartExt>>(
+            key: ValueKey(_memberId),
             future: _cart,
             builder: (context, snapshot) {
-              if (!snapshot.hasData &&
-                  snapshot.connectionState != ConnectionState.done) {
+              final loading = snapshot.connectionState != ConnectionState.done;
+              if (!snapshot.hasData && loading) {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.hasError) {
@@ -98,7 +103,7 @@ class _CartPageState extends State<CartPage> {
               if (items.isEmpty) {
                 return _emptyCart();
               }
-              return _cartContent(items);
+              return _cartContent(items, _busy || loading);
             },
           ),
   );
@@ -138,12 +143,12 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  Widget _cartContent(List<CartExt> items) {
+  Widget _cartContent(List<CartExt> items, bool actionsDisabled) {
     final total = _cartTotal(items);
     final member = SessionHelper.current.value!;
     final theme = Theme.of(context);
     final action = FilledButton.icon(
-      onPressed: _busy ? null : () => _checkout(items, member),
+      onPressed: actionsDisabled ? null : () => _checkout(items, member),
       icon: const Icon(Icons.arrow_forward_rounded, size: 19),
       label: const Text('Tiếp tục đặt món'),
       iconAlignment: IconAlignment.end,
@@ -161,7 +166,7 @@ class _CartPageState extends State<CartPage> {
               Padding(
                 key: ValueKey(item.productId),
                 padding: const EdgeInsets.only(bottom: 10),
-                child: _item(item, wide),
+                child: _item(item, wide, actionsDisabled),
               ),
           ],
         );
@@ -213,7 +218,7 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  Widget _item(CartExt item, bool wide) {
+  Widget _item(CartExt item, bool wide, bool actionsDisabled) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final photo = ClipRRect(
@@ -250,7 +255,7 @@ class _CartPageState extends State<CartPage> {
         children: [
           IconButton(
             tooltip: 'Giảm số lượng',
-            onPressed: _busy || item.quantity <= 1 || item.stock == 0
+            onPressed: actionsDisabled || item.quantity <= 1 || item.stock == 0
                 ? null
                 : () => _change(item, math.min(item.quantity - 1, item.stock)),
             icon: const Icon(Icons.remove_rounded, size: 19),
@@ -258,7 +263,7 @@ class _CartPageState extends State<CartPage> {
           Text('${item.quantity}', style: theme.textTheme.titleSmall),
           IconButton(
             tooltip: 'Tăng số lượng',
-            onPressed: _busy || item.quantity >= item.stock
+            onPressed: actionsDisabled || item.quantity >= item.stock
                 ? null
                 : () => _change(item, item.quantity + 1),
             icon: const Icon(Icons.add_rounded, size: 19),
@@ -268,7 +273,7 @@ class _CartPageState extends State<CartPage> {
     );
     final remove = IconButton(
       tooltip: 'Xóa ${item.name} khỏi giỏ',
-      onPressed: _busy ? null : () => _change(item, 0),
+      onPressed: actionsDisabled ? null : () => _change(item, 0),
       icon: const Icon(Icons.delete_outline_rounded, size: 21),
     );
     return _OrderPanel(
@@ -342,6 +347,17 @@ class _CheckoutPageState extends State<_CheckoutPage> {
 
   Future<void> _save() async {
     if (_saving) return;
+    final member = SessionHelper.current.value;
+    if (member == null ||
+        member.id != widget.member.id ||
+        !member.active ||
+        member.isAdmin) {
+      showMessage(
+        context,
+        'Phiên đăng nhập đã thay đổi. Hãy quay lại giỏ món.',
+      );
+      return;
+    }
     if (!_form.currentState!.validate()) {
       final field = _table == null ? _tableField : _nameField;
       final target = field.currentContext;

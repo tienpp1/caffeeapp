@@ -167,8 +167,14 @@ void main() {
     });
 
     await tester.pumpWidget(const MyApp());
-    final cart = find.byTooltip('Giỏ món');
+    final productCards = find.byType(ProductCard);
+    await waitFor(tester, productCards);
+    final firstProduct = productCards.first;
+    final stock = tester.widget<ProductCard>(firstProduct).product.stock;
+    await tester.tap(firstProduct);
+    final cart = find.text('Xem giỏ món');
     await waitFor(tester, cart);
+    await tester.ensureVisible(cart);
     await tester.tap(cart);
     final checkout = find.text('Tiếp tục đặt món');
     await waitFor(tester, checkout);
@@ -183,6 +189,15 @@ void main() {
     await tester.tap(submit);
     await waitFor(tester, find.text('Chờ xác nhận'));
     expect(find.text('Bàn 3'), findsWidgets);
+
+    await tester.pumpAndSettle();
+    final back = find.byType(BackButton).hitTestable();
+    await tester.tap(back);
+    await waitFor(tester, find.text('Giỏ món đang trống.'));
+    await tester.pumpAndSettle();
+    await tester.tap(back);
+    await waitFor(tester, find.text('Còn ${stock - 1} phần'));
+    expect(tester.takeException(), isNull);
 
     final orderId = await tester.runAsync(() async {
       final member = SessionHelper.current.value!;

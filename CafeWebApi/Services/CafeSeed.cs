@@ -13,6 +13,17 @@ public static class CafeSeed
         await db.Database.EnsureCreatedAsync();
 
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        await db.Database.ExecuteSqlRawAsync("""
+            DECLARE @LockResult int;
+            EXEC @LockResult = sys.sp_getapplock @Resource = N'CafeMay.Schema.Orders.PaidAtUtc',
+                @LockMode = N'Exclusive', @LockOwner = N'Transaction';
+            IF @LockResult < 0
+                THROW 50002, N'Không thể khóa lược đồ để thêm thời điểm thanh toán.', 1;
+
+            IF COL_LENGTH(N'dbo.Orders', N'PaidAtUtc') IS NULL
+                ALTER TABLE [dbo].[Orders] ADD [PaidAtUtc] datetime2 NULL;
+            """);
+
         if (!await db.Members.AnyAsync())
         {
             db.Members.AddRange(

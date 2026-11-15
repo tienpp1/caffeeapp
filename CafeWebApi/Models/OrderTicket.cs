@@ -10,6 +10,7 @@ public sealed class OrderTicket
     public string CustomerName { get; set; } = "";
     public string Note { get; set; } = "";
     public DateTime Dated { get; set; }
+    public DateTime? PaidAtUtc { get; set; }
     public long Total { get; set; }
     public string SearchText { get; set; } = "";
 }

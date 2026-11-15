@@ -55,7 +55,11 @@ class _CategoryListState extends State<_CategoryList> {
     _categories = _db.categories();
   }
 
-  void _reload() => setState(() => _categories = _db.categories());
+  void _reload() {
+    setState(() {
+      _categories = _db.categories();
+    });
+  }
 
   Future<void> _edit([Category? category]) async {
     var name = category?.name ?? '';

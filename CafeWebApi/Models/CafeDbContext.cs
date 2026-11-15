@@ -80,6 +80,8 @@ public sealed class CafeDbContext(DbContextOptions<CafeDbContext> options) : DbC
                 t.HasCheckConstraint("CK_Orders_Total", "[Total] > 0");
             });
             entity.Property(x => x.Dated).HasConversion(value => value, value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
+            entity.Property(x => x.PaidAtUtc).HasConversion(value => value,
+                value => value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : (DateTime?)null);
             entity.Property(x => x.MemberName).HasMaxLength(161);
             entity.Property(x => x.CustomerName).HasMaxLength(100);
             entity.Property(x => x.Note).HasMaxLength(500);

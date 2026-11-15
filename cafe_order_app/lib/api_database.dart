@@ -326,6 +326,24 @@ class ApiDatabase extends LocalDatabase {
   }
 
   @override
+  Future<List<OrderTicket>> paidOrders(
+    String adminId, {
+    int? year,
+    int? month,
+    int? day,
+  }) async => _list(
+    await _json(
+      'GET',
+      '/api/orders/revenue',
+      query: {
+        if (year != null) 'year': '$year',
+        if (month != null) 'month': '$month',
+        if (day != null) 'day': '$day',
+      },
+    ),
+  ).map((item) => OrderTicket.fromMap(_map(item))).toList();
+
+  @override
   Future<List<OrderLine>> orderLines(
     String actorId,
     int id, {

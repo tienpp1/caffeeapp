@@ -14,6 +14,8 @@ namespace CafeWebApi.Api.Controllers;
 [Route("api/orders")]
 public sealed class OrdersController(CafeDbContext db) : ControllerBase
 {
+    private const int PaidStatusId = 6;
+    private static readonly TimeSpan CafeUtcOffset = TimeSpan.FromHours(7);
     private string MemberId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     [HttpGet]
@@ -34,13 +36,27 @@ public sealed class OrdersController(CafeDbContext db) : ControllerBase
                 throw new ApiException(400, "Ngày phải có định dạng yyyy-MM-dd.");
 
             // The café's reporting day is based on local time in Vietnam.
-            var start = new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.FromHours(7)).UtcDateTime;
+            var start = new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), CafeUtcOffset).UtcDateTime;
             var end = start.AddDays(1);
             query = query.Where(order => order.Dated >= start && order.Dated < end);
         }
 
         var orders = await Project(query.OrderByDescending(order => order.Dated).ThenByDescending(order => order.Id))
             .ToListAsync(cancellation);
+        return Ok(orders);
+    }
+
+    [HttpGet("revenue")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Revenue(int? year, int? month, int? day, CancellationToken cancellation)
+    {
+        var query = db.Orders.AsNoTracking().Where(order => order.StatusId == PaidStatusId);
+        if (RevenuePeriod(year, month, day) is { } period)
+            query = query.Where(order => (order.PaidAtUtc ?? order.Dated) >= period.Start &&
+                                         (order.PaidAtUtc ?? order.Dated) < period.End);
+
+        var orders = await Project(query.OrderByDescending(order => order.PaidAtUtc ?? order.Dated)
+            .ThenByDescending(order => order.Id)).ToListAsync(cancellation);
         return Ok(orders);
     }
 
@@ -139,7 +155,7 @@ public sealed class OrdersController(CafeDbContext db) : ControllerBase
             1 => input.StatusId is 2 or 5,
             2 => input.StatusId is 3 or 5,
             3 => input.StatusId == 4,
-            4 => input.StatusId == 6,
+            4 => input.StatusId == PaidStatusId,
             _ => false
         };
         if (!allowed)
@@ -157,6 +173,8 @@ public sealed class OrdersController(CafeDbContext db) : ControllerBase
         }
 
         order.StatusId = input.StatusId;
+        if (input.StatusId == PaidStatusId)
+            order.PaidAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellation);
         await transaction.CommitAsync(cancellation);
         return NoContent();
@@ -171,12 +189,32 @@ public sealed class OrdersController(CafeDbContext db) : ControllerBase
         return admin ? query : query.Where(order => order.MemberId == MemberId);
     }
 
+    private static (DateTime Start, DateTime End)? RevenuePeriod(int? year, int? month, int? day)
+    {
+        if (year is null && month is null && day is null)
+            return null;
+        if (year is not (>= 2 and <= 9998) || month is < 1 or > 12 || (day.HasValue && !month.HasValue))
+            throw new ApiException(400, "Kỳ doanh thu không hợp lệ. Hãy chọn năm trước tháng và ngày.");
+
+        var start = new DateTime(year.Value, month ?? 1, 1);
+        if (day is int selectedDay)
+        {
+            if (selectedDay < 1 || selectedDay > DateTime.DaysInMonth(start.Year, start.Month))
+                throw new ApiException(400, "Ngày doanh thu không hợp lệ.");
+            start = start.AddDays(selectedDay - 1);
+        }
+
+        var end = day.HasValue ? start.AddDays(1) : month.HasValue ? start.AddMonths(1) : start.AddYears(1);
+        return (new DateTimeOffset(start, CafeUtcOffset).UtcDateTime,
+            new DateTimeOffset(end, CafeUtcOffset).UtcDateTime);
+    }
+
     private static IQueryable<OrderView> Project(IQueryable<OrderTicket> query) =>
         query.Select(order => new OrderView(order.Id, order.StatusId, order.MemberId, order.MemberName,
-            order.TableNumber, order.CustomerName, order.Note, order.Dated, order.Total));
+            order.TableNumber, order.CustomerName, order.Note, order.Dated, order.Total, order.PaidAtUtc));
 
     private sealed record OrderView(int Id, int StatusId, string MemberId, string MemberName, int TableNumber,
-        string CustomerName, string Note, DateTime Dated, long Total);
+        string CustomerName, string Note, DateTime Dated, long Total, DateTime? PaidAtUtc);
 
     public sealed record OrderInput(int TableNumber, string? CustomerName, string? Note);
 

@@ -70,7 +70,7 @@ void main() {
   );
 
   testWidgets(
-    'Admin sees the missing photo error and saves after picking one',
+    'Adding with a photo, editing and deleting refresh the product list',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(1050, 620));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -138,6 +138,27 @@ void main() {
           await photo.length(),
         );
       });
+
+      await tester.tap(find.widgetWithText(ListTile, productName));
+      await tester.pumpAndSettle();
+      const revisedName = 'Espresso thử cập nhật';
+      await _enterField(tester, 'Tên món', revisedName);
+      await tester.tap(save);
+      final edited = find.widgetWithText(ListTile, revisedName);
+      await _waitFor(tester, edited);
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(ListTile, productName), findsNothing);
+
+      await tester.tap(
+        find.descendant(of: edited, matching: find.byTooltip('Thao tác món')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Xóa'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Xóa'));
+      await _waitFor(tester, find.text('8 món'));
+      expect(edited, findsNothing);
+      await _waitFor(tester, find.text('Đã xóa món.'));
       expect(tester.takeException(), isNull);
     },
   );

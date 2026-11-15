@@ -161,6 +161,11 @@ class _HomePageState extends State<HomePage> {
           route: '/admin/orders',
         ),
         (
+          label: 'Quản lý doanh thu',
+          icon: Icons.bar_chart_rounded,
+          route: '/admin/revenue',
+        ),
+        (
           label: 'Thành viên và vai trò',
           icon: Icons.manage_accounts_outlined,
           route: '/admin/members',

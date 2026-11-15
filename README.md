@@ -1,6 +1,6 @@
 # Cà Phê Mây
 
-Ứng dụng Flutter/Dart để xem thực đơn, gọi món theo bàn, phục vụ và ghi nhận thu tiền. Android lưu dữ liệu trên thiết bị bằng SQLite. Windows và trình duyệt dùng chung dữ liệu qua Web API ASP.NET Core 10 và SQL Server.
+Ứng dụng Flutter/Dart để xem thực đơn, gọi món theo bàn, phục vụ, ghi nhận thu tiền và đối chiếu doanh thu. Android lưu dữ liệu trên thiết bị bằng SQLite. Windows và trình duyệt dùng chung dữ liệu qua Web API ASP.NET Core 10 và SQL Server.
 
 ## Chạy trên Windows hoặc trình duyệt
 

@@ -43,6 +43,12 @@ class _DetailsPageState extends State<DetailsPage> {
         pageSize: _pageSize,
       );
 
+  void _reloadProduct() {
+    setState(() {
+      _product = _loadProduct();
+    });
+  }
+
   Future<void> _add(Product product) async {
     setState(() => _saving = true);
     try {
@@ -67,7 +73,7 @@ class _DetailsPageState extends State<DetailsPage> {
   Future<void> _openCart() async {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     await Navigator.pushNamed(context, '/cart');
-    if (mounted) setState(() => _product = _loadProduct());
+    if (mounted) _reloadProduct();
   }
 
   @override
@@ -80,10 +86,7 @@ class _DetailsPageState extends State<DetailsPage> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return LoadError(
-            error: snapshot.error,
-            retry: () => setState(() => _product = _loadProduct()),
-          );
+          return LoadError(error: snapshot.error, retry: _reloadProduct);
         }
         final product = snapshot.data;
         if (product == null) {
@@ -245,7 +248,9 @@ class _DetailsPageState extends State<DetailsPage> {
           if (snapshot.hasError) {
             return LoadError(
               error: snapshot.error,
-              retry: () => setState(() => _related = _queryRelated(product)),
+              retry: () => setState(() {
+                _related = _queryRelated(product);
+              }),
             );
           }
           final result = snapshot.data;

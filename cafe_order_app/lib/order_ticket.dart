@@ -9,6 +9,7 @@ class OrderTicket {
     required this.customerName,
     required this.note,
     required this.dated,
+    this.paidAtUtc,
   });
 
   final int id;
@@ -20,6 +21,7 @@ class OrderTicket {
   final String customerName;
   final String note;
   final DateTime dated;
+  final DateTime? paidAtUtc;
 
   factory OrderTicket.fromMap(Map<String, Object?> map) => OrderTicket(
     id: map['id'] as int,
@@ -31,6 +33,10 @@ class OrderTicket {
     customerName: map['customerName'] as String,
     note: map['note'] as String,
     dated: DateTime.parse(map['dated'] as String),
+    paidAtUtc: switch (map['paidAtUtc']) {
+      final String paidAt => DateTime.parse(paidAt).toUtc(),
+      _ => null,
+    },
   );
 }
 

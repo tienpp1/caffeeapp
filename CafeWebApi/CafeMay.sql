@@ -3,7 +3,7 @@
 
     Mở bằng SSMS, kết nối .\SQLEXPRESS với Windows Authentication rồi nhấn Execute.
     Nếu CafeMay chưa có, script tạo database, 8 bảng của Web API và thực đơn mẫu.
-    Nếu 8 bảng đã có, script giữ nguyên các hàng và chạy các truy vấn xem dữ liệu.
+    Nếu 8 bảng đã có, script bổ sung cột thời điểm thanh toán khi cần, giữ lại dữ liệu và chạy các truy vấn xem dữ liệu.
 
     Nguồn 3 danh mục và 16 món: cafe_order_app/lib/local_seed.dart.
     Cấu trúc SQL Server lấy từ CafeWebApi/Models/CafeDbContext.cs.
@@ -79,6 +79,7 @@ BEGIN
             [CustomerName] nvarchar(100) NOT NULL,
             [Note] nvarchar(500) NOT NULL,
             [Dated] datetime2 NOT NULL,
+            [PaidAtUtc] datetime2 NULL,
             [Total] bigint NOT NULL,
             [SearchText] nvarchar(600) NOT NULL,
             CONSTRAINT [PK_Orders] PRIMARY KEY ([Id]),
@@ -199,6 +200,18 @@ BEGIN
 END;
 GO
 
+BEGIN TRANSACTION;
+    DECLARE @LockResult int;
+    EXEC @LockResult = sys.sp_getapplock @Resource = N'CafeMay.Schema.Orders.PaidAtUtc',
+        @LockMode = N'Exclusive', @LockOwner = N'Transaction';
+    IF @LockResult < 0
+        THROW 50002, N'Không thể khóa lược đồ để thêm thời điểm thanh toán.', 1;
+
+    IF COL_LENGTH(N'dbo.Orders', N'PaidAtUtc') IS NULL
+        ALTER TABLE [dbo].[Orders] ADD [PaidAtUtc] datetime2 NULL;
+COMMIT TRANSACTION;
+GO
+
 -- XEM BẢNG, CỘT VÀ KHÓA NGOẠI
 SELECT SCHEMA_NAME(t.schema_id) AS [Schema], t.name AS [TableName],
        COALESCE(SUM(p.rows), 0) AS [Rows]
@@ -237,7 +250,7 @@ SELECT Id, MemberId, ProductId, Quantity
 FROM dbo.CartItems ORDER BY Id;
 
 SELECT Id, MemberId, MemberName, TableNumber, CustomerName, Note, Total,
-       Dated AS DatedUtc,
+       Dated AS DatedUtc, PaidAtUtc,
        CASE StatusId
            WHEN 1 THEN N'Chờ xác nhận'
            WHEN 2 THEN N'Đang pha chế'
