@@ -54,7 +54,7 @@ class _ProductList extends StatefulWidget {
 }
 
 class _ProductListState extends State<_ProductList> {
-  static const _pageSize = 6;
+  static const _pageSize = 5;
   final _db = LocalDatabase.instance;
   late Future<_ProductCatalog> _catalog;
   bool _deleting = false;
@@ -91,8 +91,11 @@ class _ProductListState extends State<_ProductList> {
     );
   }
 
-  void _reload({required int page, int? categoryId}) =>
-      setState(() => _catalog = _load(page: page, categoryId: categoryId));
+  void _reload({required int page, int? categoryId}) {
+    setState(() {
+      _catalog = _load(page: page, categoryId: categoryId);
+    });
+  }
 
   Future<void> _openCategories() async {
     await Navigator.pushNamed(context, '/admin/categories');
@@ -193,7 +196,9 @@ class _ProductListState extends State<_ProductList> {
     if (!mounted || saved != true) return;
     _reload(
       page: product == null ? 1 : catalog.page,
-      categoryId: catalog.categoryId,
+      categoryId: product == null && catalog.categoryId != null
+          ? categoryId
+          : catalog.categoryId,
     );
     showMessage(context, 'Đã lưu món.');
   }
@@ -277,25 +282,11 @@ class _ProductListState extends State<_ProductList> {
                       message: 'Chưa có món trong danh sách.',
                     )
                   : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                      itemCount: catalog.products.items.length + 1,
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                      itemCount: catalog.products.items.length,
                       separatorBuilder: (context, index) =>
                           const SizedBox(height: 10),
                       itemBuilder: (context, index) {
-                        if (index == catalog.products.items.length) {
-                          return IgnorePointer(
-                            ignoring: _deleting,
-                            child: PagingControls(
-                              page: catalog.page,
-                              total: catalog.products.total,
-                              pageSize: _pageSize,
-                              onChanged: (page) => _reload(
-                                page: page,
-                                categoryId: catalog.categoryId,
-                              ),
-                            ),
-                          );
-                        }
                         final product = catalog.products.items[index];
                         final colors = Theme.of(context).colorScheme;
                         return WorkspaceCard(
@@ -397,6 +388,20 @@ class _ProductListState extends State<_ProductList> {
                       },
                     ),
             ),
+            if (catalog.products.total > _pageSize)
+              SafeArea(
+                top: false,
+                child: IgnorePointer(
+                  ignoring: _deleting,
+                  child: PagingControls(
+                    page: catalog.page,
+                    total: catalog.products.total,
+                    pageSize: _pageSize,
+                    onChanged: (page) =>
+                        _reload(page: page, categoryId: catalog.categoryId),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

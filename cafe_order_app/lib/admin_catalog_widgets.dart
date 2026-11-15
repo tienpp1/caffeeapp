@@ -367,7 +367,12 @@ class _CatalogEditorState extends State<CatalogEditor> {
   }
 
   Future<void> _save() async {
-    if (_busy || !_form.currentState!.validate()) return;
+    if (_busy) return;
+    FocusScope.of(context).unfocus();
+    if (!_form.currentState!.validate()) {
+      setState(() => _error = 'Kiểm tra các ô được đánh dấu trước khi lưu.');
+      return;
+    }
     if (widget.requireImage && _selectedImage == null) {
       setState(() => _error = 'Vui lòng chọn ảnh món trước khi lưu.');
       return;
@@ -398,10 +403,7 @@ class _CatalogEditorState extends State<CatalogEditor> {
     if (image != null) {
       return Image.memory(image, fit: BoxFit.contain, cacheWidth: 640);
     }
-    if (_hasStoredImage && !_removeImage) {
-      return ProductImage(asset: widget.asset, imageId: widget.imageId);
-    }
-    return const Icon(Icons.add_photo_alternate_outlined, size: 36);
+    return ProductImage(asset: widget.asset, imageId: widget.imageId);
   }
 
   @override
@@ -414,6 +416,7 @@ class _CatalogEditorState extends State<CatalogEditor> {
         insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
         titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 0),
         contentPadding: const EdgeInsets.fromLTRB(22, 18, 22, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(22, 0, 22, 22),
         title: Text(widget.title),
         content: SizedBox(
           width: 420,
@@ -428,23 +431,11 @@ class _CatalogEditorState extends State<CatalogEditor> {
                   const SizedBox(height: 12),
                 ],
                 Text(
-                  'Ảnh hiển thị',
+                  widget.requireImage ? 'Ảnh món (bắt buộc)' : 'Ảnh hiển thị',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
-                const SizedBox(height: 8),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: colors.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: colors.outlineVariant),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: SizedBox(height: 144, child: _preview()),
-                  ),
-                ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  padding: const EdgeInsets.only(top: 4, bottom: 8),
                   child: Text(
                     'JPEG, PNG hoặc WebP · tối đa 5 MB',
                     style: TextStyle(color: colors.onSurfaceVariant),
@@ -477,31 +468,67 @@ class _CatalogEditorState extends State<CatalogEditor> {
                       ),
                   ],
                 ),
-                if (_error case final message?)
-                  Container(
-                    margin: const EdgeInsets.only(top: 10),
-                    padding: const EdgeInsets.all(12),
+                if (_selectedImage != null ||
+                    (_hasStoredImage && !_removeImage)) ...[
+                  const SizedBox(height: 8),
+                  DecoratedBox(
                     decoration: BoxDecoration(
-                      color: colors.errorContainer,
-                      borderRadius: BorderRadius.circular(10),
+                      color: colors.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: colors.outlineVariant),
                     ),
-                    child: Text(
-                      message,
-                      style: TextStyle(color: colors.onErrorContainer),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: SizedBox(height: 144, child: _preview()),
                     ),
                   ),
+                ],
               ],
             ),
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: _busy ? null : () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: _busy ? null : _save,
-            child: Text(_saving ? 'Đang lưu…' : 'Lưu'),
+          SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_error case final message?)
+                  Semantics(
+                    liveRegion: true,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: colors.errorContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        message,
+                        style: TextStyle(color: colors.onErrorContainer),
+                      ),
+                    ),
+                  ),
+                OverflowBar(
+                  alignment: MainAxisAlignment.end,
+                  overflowAlignment: OverflowBarAlignment.end,
+                  spacing: 8,
+                  children: [
+                    TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => Navigator.pop(context, false),
+                      child: const Text('Hủy'),
+                    ),
+                    FilledButton(
+                      onPressed: _busy ? null : _save,
+                      child: Text(_saving ? 'Đang lưu…' : 'Lưu'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
