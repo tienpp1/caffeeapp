@@ -40,14 +40,22 @@ class _OrderPageState extends State<OrderPage> {
 
   void _load() {
     final member = SessionHelper.current.value;
-    _orders = member == null || member.isAdmin != widget.admin
+    _orders = member == null || !member.active || member.isAdmin != widget.admin
         ? null
-        : LocalDatabase.instance.orders(
-            member.id,
-            admin: widget.admin,
-            search: _search.text.trim(),
-            date: _date,
-          );
+        : _loadOrders(member.id);
+  }
+
+  Future<List<OrderTicket>> _loadOrders(String memberId) async {
+    final admin = widget.admin;
+    final orders = await LocalDatabase.instance.orders(
+      memberId,
+      admin: admin,
+      search: _search.text.trim(),
+      date: _date,
+    );
+    return admin
+        ? orders
+        : orders.where((order) => order.memberId == memberId).toList();
   }
 
   void _reload() => setState(_load);

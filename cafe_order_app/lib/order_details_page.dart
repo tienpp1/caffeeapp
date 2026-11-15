@@ -45,15 +45,29 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     }
   }
 
-  void _reload() => setState(() => _data = _load());
+  void _reload() {
+    setState(() {
+      _data = _load();
+    });
+  }
 
   Future<(OrderTicket, List<OrderLine>)?> _load() async {
     final id = _id;
+    final admin = _admin;
     final member = SessionHelper.current.value;
-    if (id == null || member == null || member.isAdmin != _admin) return null;
-    final order = await _database.order(member.id, id, admin: _admin);
-    if (order == null) return null;
-    final lines = await _database.orderLines(member.id, id, admin: _admin);
+    if (id == null ||
+        member == null ||
+        !member.active ||
+        member.isAdmin != admin) {
+      return null;
+    }
+    final order = await _database.order(member.id, id, admin: admin);
+    if (order == null ||
+        (!admin && order.memberId != member.id) ||
+        SessionHelper.current.value?.id != member.id) {
+      return null;
+    }
+    final lines = await _database.orderLines(member.id, id, admin: admin);
     return (order, lines);
   }
 
@@ -64,7 +78,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   ) async {
     if (_saving) return;
     final member = SessionHelper.current.value;
-    if (member == null || !member.isAdmin) return;
+    if (member == null || !member.active || !member.isAdmin) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -92,18 +106,28 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted || _saving) return;
+    final current = SessionHelper.current.value;
+    if (current == null ||
+        current.id != member.id ||
+        !current.active ||
+        !current.isAdmin) {
+      return;
+    }
     setState(() => _saving = true);
     try {
       await _database.updateOrderStatus(member.id, order.id, statusId);
-      if (!mounted) return;
-      _reload();
-      showMessage(context, 'Đã cập nhật trạng thái đơn.');
     } catch (error) {
-      if (mounted) showMessage(context, errorMessage(error));
+      if (mounted && SessionHelper.current.value?.id == member.id) {
+        showMessage(context, errorMessage(error));
+      }
+      return;
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+    if (!mounted || SessionHelper.current.value?.id != member.id) return;
+    _reload();
+    showMessage(context, 'Đã cập nhật trạng thái đơn.');
   }
 
   @override

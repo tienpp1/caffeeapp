@@ -206,6 +206,8 @@ void main() {
     final order = find.text('Đơn #$orderId · Bàn 3');
     await waitFor(tester, order);
     await tester.tap(order);
+    final success = find.text('Đã cập nhật trạng thái đơn.');
+    final error = find.text('Đã có lỗi. Vui lòng thử lại.');
     for (final action in [
       'Đang pha chế',
       'Chờ phục vụ',
@@ -218,9 +220,90 @@ void main() {
       await tester.tap(button);
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Xác nhận'));
+      await waitFor(tester, success);
+      expect(success, findsOneWidget);
+      expect(error, findsNothing);
+      tester
+          .state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger))
+          .removeCurrentSnackBar();
+      await tester.pump();
+      expect(success, findsNothing);
     }
     await waitFor(tester, find.text('Đã thu tiền mặt'));
     expect(find.text('Đã thanh toán'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Members only see their own orders after switching accounts', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    const firstEmail = 'first.orders@example.com';
+    const secondEmail = 'second.orders@example.com';
+    const password = 'CafeMay@1234';
+    final orders = (await tester.runAsync(() async {
+      final product = (await database.products(pageSize: 1)).items.single;
+      Future<int> createOrder(String email, int table) async {
+        final member = await database.register(
+          email: email,
+          password: password,
+          givenName: 'Linh',
+        );
+        await database.addToCart(member.id, product.id);
+        return database.checkout(
+          member.id,
+          tableNumber: table,
+          customerName: 'Linh',
+        );
+      }
+
+      final first = await createOrder(firstEmail, 7);
+      final second = await createOrder(secondEmail, 8);
+      await SessionHelper.save(await database.signIn(firstEmail, password));
+      return (first: first, second: second);
+    }))!;
+
+    await tester.pumpWidget(const MyApp());
+    final menu = find.byIcon(Icons.menu);
+    await waitFor(tester, menu);
+    await tester.tap(menu);
+    final myOrders = find.text('Đơn của tôi').hitTestable();
+    await waitFor(tester, myOrders);
+    await tester.tap(myOrders);
+
+    final firstOrder = find.text('Đơn #${orders.first} · Bàn 7');
+    final secondOrder = find.text('Đơn #${orders.second} · Bàn 8');
+    await waitFor(tester, firstOrder);
+    expect(secondOrder, findsNothing);
+    await tester.tap(firstOrder);
+    final firstDetail = find.text('Đơn #${orders.first}');
+    await waitFor(tester, firstDetail);
+
+    await tester.runAsync(() async {
+      await SessionHelper.delete();
+      await SessionHelper.save(await database.signIn(secondEmail, password));
+    });
+    final denied = find.text('Không tìm thấy đơn hoặc bạn chưa có quyền xem.');
+    await waitFor(tester, denied);
+    expect(firstDetail, findsNothing);
+    await tester.tap(find.byType(BackButton).hitTestable());
+    await waitFor(tester, secondOrder);
+    expect(firstOrder, findsNothing);
+
+    final search = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.labelText == 'Tìm mã đơn, số bàn hoặc tên',
+    );
+    await tester.enterText(search, '#${orders.first}');
+    await tester.pump(const Duration(milliseconds: 300));
+    await waitFor(tester, find.text('Không có đơn phù hợp.'));
+    expect(firstOrder, findsNothing);
+    await tester.enterText(search, '#${orders.second}');
+    await tester.pump(const Duration(milliseconds: 300));
+    await waitFor(tester, secondOrder);
     expect(tester.takeException(), isNull);
   });
 }
